@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js"></script>
     <style>
         :root {
             --bg-primary: #0d1f0d;
@@ -376,34 +376,57 @@ const MGRS = (() => {
 })();
 
 // ── GPS + Reverse Geocoding ──────────────────────────────────────────────────
+async function applyGPSPosition(pos) {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    const mgrs = MGRS.forward(lat, lon);
+    let desc = '';
+    try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=sv`);
+        const d = await r.json();
+        const a = d.address || {};
+        const name = a.amenity || a.leisure || a.building || '';
+        const street = a.road ? (a.road + (a.house_number ? ' ' + a.house_number : '')) : '';
+        const area = a.suburb || a.neighbourhood || a.city_district || '';
+        desc = [name, street, area].filter(Boolean).join(', ');
+    } catch (_) {}
+    const result = desc ? `${mgrs}, ${desc}` : mgrs;
+    const field = document.getElementById('stalle');
+    field.value = field.value ? field.value + ', ' + result : result;
+}
+
+function gpsErrorMessage(err) {
+    if (err.code === 1) return 'Platsåtkomst nekad – tillåt i webbläsarens inställningar och ladda om sidan.';
+    if (err.code === 2) return 'Positionen kunde inte bestämmas – försök igen utomhus.';
+    if (err.code === 3) return 'Tidsgräns överskreds – gå utomhus och försök igen.';
+    return 'Kunde inte hämta position: ' + err.message;
+}
+
 async function getGPS() {
     const btn = document.getElementById('gpsBtn');
     if (!navigator.geolocation) { alert('Geolocation stöds ej i denna webbläsare.'); return; }
     btn.textContent = '⏳ Hämtar...';
     btn.disabled = true;
-    navigator.geolocation.getCurrentPosition(async pos => {
-        const { latitude: lat, longitude: lon } = pos.coords;
-        const mgrs = MGRS.forward(lat, lon);
-        let desc = '';
-        try {
-            const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=sv`);
-            const d = await r.json();
-            const a = d.address || {};
-            const name = a.amenity || a.leisure || a.building || '';
-            const street = a.road ? (a.road + (a.house_number ? ' ' + a.house_number : '')) : '';
-            const area = a.suburb || a.neighbourhood || a.city_district || '';
-            desc = [name, street, area].filter(Boolean).join(', ');
-        } catch (_) {}
-        const result = desc ? `${mgrs}, ${desc}` : mgrs;
-        const field = document.getElementById('stalle');
-        field.value = field.value ? field.value + ', ' + result : result;
-        btn.textContent = '📍 MGRS';
-        btn.disabled = false;
-    }, err => {
-        alert('Kunde inte hämta position: ' + err.message);
-        btn.textContent = '📍 MGRS';
-        btn.disabled = false;
-    }, { enableHighAccuracy: true, timeout: 10000 });
+
+    const done = () => { btn.textContent = '📍 MGRS'; btn.disabled = false; };
+
+    // Försök först med hög noggrannhet (GPS), fallback till lägre (WiFi/cell)
+    navigator.geolocation.getCurrentPosition(
+        async pos => { await applyGPSPosition(pos); done(); },
+        err => {
+            if (err.code === 3) {
+                // Timeout – försök igen med lägre noggrannhet
+                navigator.geolocation.getCurrentPosition(
+                    async pos => { await applyGPSPosition(pos); done(); },
+                    err2 => { alert(gpsErrorMessage(err2)); done(); },
+                    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+                );
+            } else {
+                alert(gpsErrorMessage(err));
+                done();
+            }
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }
+    );
 }
 
 // ── Foto EXIF ────────────────────────────────────────────────────────────────
@@ -429,7 +452,7 @@ async function readFoto(input) {
 
         // Ställe från GPS
         const lat = exif.latitude, lon = exif.longitude;
-        if (lat && lon) {
+        if (lat != null && lon != null) {
             const mgrs = MGRS.forward(lat, lon);
             let desc = '';
             try {
