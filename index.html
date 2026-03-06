@@ -12,6 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
     <style>
         :root {
             --bg-primary: #0d1f0d;
@@ -181,6 +182,13 @@
     <main>
         <div class="form-view" id="formView">
 
+            <!-- FOTO -->
+            <div class="form-group" style="border-style:dashed;">
+                <input type="file" id="fotoInput" accept="image/*" style="display:none" onchange="readFoto(this)">
+                <button class="btn btn-primary" style="margin-top:0" onclick="document.getElementById('fotoInput').click()">📷 Fyll från foto</button>
+                <div id="fotoStatus" style="font-size:0.8rem;color:var(--text-muted);margin-top:8px;text-align:center"></div>
+            </div>
+
             <!-- STUND -->
             <div class="form-group">
                 <div class="label-row">
@@ -236,6 +244,10 @@
                     <button class="chip" onclick="appendChip('slag','Stridsvagn')">Stridsvagn</button>
                     <button class="chip" onclick="appendChip('slag','Lastbil')">Lastbil</button>
                     <button class="chip" onclick="appendChip('slag','Helikopter')">Helikopter</button>
+                    <button class="chip" onclick="appendChip('slag','MC')">MC</button>
+                    <button class="chip" onclick="appendChip('slag','Moped')">Moped</button>
+                    <button class="chip" onclick="appendChip('slag','VOI')">VOI</button>
+                    <button class="chip" onclick="appendChip('slag','Cykel')">Cykel</button>
                 </div>
             </div>
 
@@ -250,6 +262,8 @@
                 <div class="chip-group">
                     <button class="chip" onclick="appendChip('sysselsattning','Rör sig N')">Rör sig N</button>
                     <button class="chip" onclick="appendChip('sysselsattning','Rör sig S')">Rör sig S</button>
+                    <button class="chip" onclick="appendChip('sysselsattning','Rör sig Ö')">Rör sig Ö</button>
+                    <button class="chip" onclick="appendChip('sysselsattning','Rör sig V')">Rör sig V</button>
                     <button class="chip" onclick="appendChip('sysselsattning','Stannat')">Stannat</button>
                     <button class="chip" onclick="appendChip('sysselsattning','Eldgivning')">Eldgivning</button>
                     <button class="chip" onclick="appendChip('sysselsattning','Patrull')">Patrull</button>
@@ -373,9 +387,10 @@ async function getGPS() {
             const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=sv`);
             const d = await r.json();
             const a = d.address || {};
-            const name = a.amenity || a.leisure || a.building || a.road || a.suburb || a.city || '';
-            const area = name !== (a.suburb||'') ? (a.suburb || a.neighbourhood || '') : '';
-            desc = [name, area].filter(Boolean).join(', ');
+            const name = a.amenity || a.leisure || a.building || '';
+            const street = a.road ? (a.road + (a.house_number ? ' ' + a.house_number : '')) : '';
+            const area = a.suburb || a.neighbourhood || a.city_district || '';
+            desc = [name, street, area].filter(Boolean).join(', ');
         } catch (_) {}
         const result = desc ? `${mgrs}, ${desc}` : mgrs;
         const field = document.getElementById('stalle');
@@ -387,6 +402,53 @@ async function getGPS() {
         btn.textContent = '📍 MGRS';
         btn.disabled = false;
     }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+// ── Foto EXIF ────────────────────────────────────────────────────────────────
+async function readFoto(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const status = document.getElementById('fotoStatus');
+    status.textContent = 'Läser metadata...';
+    try {
+        const exif = await exifr.parse(file, { tiff: true, gps: true, exif: true });
+        if (!exif) { status.textContent = 'Ingen EXIF-data hittades i bilden.'; return; }
+
+        // Stund från DateTimeOriginal
+        const dt = exif.DateTimeOriginal || exif.DateTime;
+        if (dt) {
+            const d = new Date(dt);
+            const day = String(d.getDate()).padStart(2,'0');
+            const h   = String(d.getHours()).padStart(2,'0');
+            const m   = String(d.getMinutes()).padStart(2,'0');
+            document.getElementById('stund').value = day + h + m;
+        }
+
+        // Ställe från GPS
+        const lat = exif.latitude, lon = exif.longitude;
+        if (lat && lon) {
+            const mgrs = MGRS.forward(lat, lon);
+            let desc = '';
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=sv`);
+                const d2 = await r.json();
+                const a = d2.address || {};
+                const name   = a.amenity || a.leisure || a.building || '';
+                const street = a.road ? (a.road + (a.house_number ? ' ' + a.house_number : '')) : '';
+                const area   = a.suburb || a.neighbourhood || a.city_district || '';
+                desc = [name, street, area].filter(Boolean).join(', ');
+            } catch(_) {}
+            const result = desc ? `${mgrs}, ${desc}` : mgrs;
+            const field = document.getElementById('stalle');
+            field.value = field.value ? field.value + ', ' + result : result;
+            status.textContent = dt ? '✓ Tid och plats hämtad från foto.' : '✓ Plats hämtad från foto.';
+        } else {
+            status.textContent = dt ? '✓ Tid hämtad. Ingen GPS i bilden.' : 'Ingen EXIF-data hittades.';
+        }
+    } catch(e) {
+        status.textContent = 'Kunde inte läsa bilden: ' + e.message;
+    }
+    input.value = '';
 }
 
 // ── Chip-knappar (appendar till befintligt värde) ─────────────────────────────
