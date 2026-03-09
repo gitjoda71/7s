@@ -317,6 +317,22 @@
                 <div class="saved-items" id="savedSagesman"></div>
             </div>
 
+            <!-- SEDAN -->
+            <div class="form-group">
+                <div class="label-row">
+                    <label for="sedan">Sedan <span style="font-size:0.75rem;opacity:0.6;font-weight:normal;">(frivillig)</span></label>
+                    <button class="info-btn" tabindex="-1" onclick="toggleInfo('infoSedan')" aria-label="Info om Sedan">i</button>
+                </div>
+                <div class="info-text" id="infoSedan">Vad spaningsgruppen fortsätter med efter observationen. Kan vara avgörande om enheten inte hör av sig igen, eller som underlag för underrättelsebefäl att skicka följdfrågor.</div>
+                <textarea id="sedan" rows="2" placeholder="Vid behov — ange spaningsgruppens fortsatta uppgift"></textarea>
+                <div class="chip-group">
+                    <button class="chip" onclick="appendChip('sedan','Återgår till bas')">Återgår till bas</button>
+                    <button class="chip" onclick="appendChip('sedan','Fortsätter spaning')">Fortsätter spaning</button>
+                    <button class="chip" onclick="appendChip('sedan','Följer efter')">Följer efter</button>
+                    <button class="chip" onclick="appendChip('sedan','Avbryter uppdraget')">Avbryter uppdraget</button>
+                </div>
+            </div>
+
             <hr class="divider">
             <button class="btn btn-primary" onclick="generateReport()">Generera rapport</button>
         </div>
@@ -514,6 +530,7 @@ function generateReport() {
         `Sysselsättning: ${v('sysselsattning') || '-'}`,
         `Symbol: ${v('symbol') || '-'}`,
         `Sagesman: ${v('sagesman') || '-'}`,
+        `Sedan: ${v('sedan') || '-'}`,
     ];
     document.getElementById('reportOutput').textContent = lines.join('\n');
     document.getElementById('formView').classList.add('hidden');
@@ -553,7 +570,7 @@ function backToEdit() {
 }
 function resetForm() {
     if (!confirm('Nollställ rapporten?')) return;
-    ['stund','stalle','styrka','slag','sysselsattning','symbol'].forEach(id =>
+    ['stund','stalle','styrka','slag','sysselsattning','symbol','sedan'].forEach(id =>
         document.getElementById(id).value = '');
     backToEdit();
 }
