@@ -82,6 +82,7 @@
             margin-bottom: 8px; line-height: 1.5;
         }
         .info-text.show { display: block; }
+        .field-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 5px; opacity: 0.75; }
 
         input[type="text"], textarea {
             width: 100%; background: var(--bg-input); border: 1px solid var(--border);
@@ -171,6 +172,12 @@
             height: 24px; opacity: 0; transition: opacity 0.2s; margin-bottom: 12px;
         }
         .copy-feedback.show { opacity: 1; }
+
+        /* Navigering */
+        .tab-nav { display: flex; gap: 4px; margin-bottom: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; }
+        .tab-link { flex: 1; text-align: center; padding: 9px 2px; border-radius: var(--radius-sm); color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; transition: background 0.15s, color 0.15s; -webkit-tap-highlight-color: transparent; }
+        .tab-link:hover { background: var(--bg-card); color: var(--text-secondary); }
+        .tab-link.active { background: var(--accent-dim); color: var(--accent); }
     </style>
 </head>
 <body>
@@ -179,6 +186,13 @@
         <h1>7S Rapport</h1>
         <p>Fältrapporteringsverktyg</p>
     </header>
+    <nav class="tab-nav">
+        <a href="index.html" class="tab-link active">7S</a>
+        <a href="what.html" class="tab-link">WHAT</a>
+        <a href="scrim.html" class="tab-link">SCRIM</a>
+        <a href="weft.html" class="tab-link">WEFT</a>
+        <a href="ah.html" class="tab-link">A–H</a>
+    </nav>
     <main>
         <div class="form-view" id="formView">
 
@@ -297,8 +311,9 @@
                     <label for="sagesman">Sagesman</label>
                     <button class="info-btn" tabindex="-1" onclick="toggleInfo('infoSagesman')" aria-label="Info om Sagesman">i</button>
                 </div>
-                <div class="info-text" id="infoSagesman">Vem som har gjort observationen.</div>
-                <input type="text" id="sagesman" placeholder="Observatör" autocomplete="off">
+                <div class="info-text" id="infoSagesman">Format: NIN 111. 1a p, 2a grp. För- och Efternamn<br><u>Gu</u>nnarsson, <u>D</u>aniel → GUD</div>
+                <input type="text" id="sagesman" placeholder="GUD 111. 3e p, 2a grp." autocomplete="off">
+                <div class="field-hint">(Namnkod = de två första bokstäverna i efternamnet + första bokstaven i förnamnet)</div>
                 <div class="saved-items" id="savedSagesman"></div>
             </div>
 
